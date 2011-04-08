@@ -1,34 +1,57 @@
-DEPDIR = .dep
+################################################################################
+#
+# Copyright 1993-2006 NVIDIA Corporation.  All rights reserved.
+#
+# NOTICE TO USER:   
+#
+# This source code is subject to NVIDIA ownership rights under U.S. and 
+# international Copyright laws.  
+#
+# NVIDIA MAKES NO REPRESENTATION ABOUT THE SUITABILITY OF THIS SOURCE 
+# CODE FOR ANY PURPOSE.  IT IS PROVIDED "AS IS" WITHOUT EXPRESS OR 
+# IMPLIED WARRANTY OF ANY KIND.  NVIDIA DISCLAIMS ALL WARRANTIES WITH 
+# REGARD TO THIS SOURCE CODE, INCLUDING ALL IMPLIED WARRANTIES OF 
+# MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE.   
+# IN NO EVENT SHALL NVIDIA BE LIABLE FOR ANY SPECIAL, INDIRECT, INCIDENTAL, 
+# OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS 
+# OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE 
+# OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE 
+# OR PERFORMANCE OF THIS SOURCE CODE.  
+#
+# U.S. Government End Users.  This source code is a "commercial item" as 
+# that term is defined at 48 C.F.R. 2.101 (OCT 1995), consisting  of 
+# "commercial computer software" and "commercial computer software 
+# documentation" as such terms are used in 48 C.F.R. 12.212 (SEPT 1995) 
+# and is provided to the U.S. Government only as a commercial end item.  
+# Consistent with 48 C.F.R.12.212 and 48 C.F.R. 227.7202-1 through 
+# 227.7202-4 (JUNE 1995), all U.S. Government End Users acquire the 
+# source code with only those rights set forth herein.
+#
+################################################################################
+#
+# Build script for project
+#
+################################################################################
 
-TARGET0 = mixtureModelCPU
-CXX = g++-4.0
-CXXFLAGS = -g -O3 -Wall -Wno-deprecated -fomit-frame-pointer -fexpensive-optimizations -fstrength-reduce -fschedule-insns2 -funroll-loops 
-LIBS = -lm
-INCLUDES = -I.
+# Add source files here
+EXECUTABLE	:= gaussian
+# CUDA source files (compiled with cudacc)
+CUFILES_sm_20 := gaussian.cu
+# CUDA dependency files
+CU_DEPS		:= \
+    theta_kernel.cu gaussian.h
 
-DIRS0 = .
+# C/C++ source files (compiled with gcc / c++)
+CCFILES		:= readData.cpp \
+		invert_matrix.cpp \
 
-SOURCES0= $(foreach dir, $(DIRS0), $(wildcard $(dir)/*.cpp))
+C_DEPS		:= invert_matrix.h
 
-OBJS0 = $(SOURCES0:.cpp=.o)
+USECUBLAS := 1
 
-.PHONY: all TAGS clean
 
-all: $(TARGET0)
+################################################################################
+# Rules and targets
 
-TAGS:
-	@find \( -name '*.c' -o -name '*.cc' -o -name '*.h' \)|etags -l c++ -
-
-clean:
-	@rm -rf $(TARGET0) $(OBJS0) $(DEPDIR) `find . \\( -name '*~' \\)`
-
-%.o: %.cpp
-	@$(CXX) -MMD -DDEBUG $(CXXFLAGS) $(INCLUDES) -c $< -o $@
-	@mkdir -p .dep/$(@D)
-	@mv $*.d $(DEPDIR)/$*.P
-
--include $(SOURCES0:%.cpp=$(DEPDIR)/%.P)
-
-$(TARGET0): $(OBJS0)
-	@$(CXX) $(CXXFLAGS) $(OBJS0) $(LIBS) -o $(TARGET0)
-
+include ../../common/common.mk
+NVCCFLAGS += --ptxas-options=-v

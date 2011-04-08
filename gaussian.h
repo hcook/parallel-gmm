@@ -1,32 +1,53 @@
 /*
  * Parameters file for gaussian mixture model based clustering application
+ *
+ * Written By: Andrew Pangborn
+ * 01/2009
+ *
+ * Department of Computer Engineering
+ * Rochester Institute of Technology
+ *
  */
 
 #ifndef GAUSSIAN_H
 #define GAUSSIAN_H
 
-// Maxinum number of threads per block is 512, so that limits us to 512 clusters
-// Probably will run out of memory and make the computation intractable far before 512 clusters though
-#define MAX_CLUSTERS 512
-#define PI  3.1415926535897931
-#define	NUM_BLOCKS 30
-#define NUM_THREADS 512 // Must be power of 2 due to butterfly sum reductions
-#define NUM_DIMENSIONS 32
 
+//mstep_covariance code versions
+//=============================
+#define CODEVAR_1
+//#define CODEVAR_2A
+//#define CODEVAR_2B
+//#define CODEVAR_3A
+//#define CODEVAR_3B
+
+//#define SH_MEM_EVENTS
+
+//#define PRINT_MATRIX
+//=============================
+
+#define PI  3.1415926535897931
 #define COVARIANCE_DYNAMIC_RANGE 1E6
 
-// if 0, uses random, else picks events uniformly distributed in data set
-#define UNIFORM_SEED 1
+// Number of blocks per cluster for the E-step
+#define NUM_BLOCKS 32
+#define NUM_THREADS_ESTEP 512 // should be a power of 2 for parallel reductions to work
+#define NUM_THREADS_MSTEP 256 // should be a power of 2 for parallel reductions to work
+#define NUM_DIMENSIONS 50
+#define NUM_EVENTS 5000
+#define NUM_CLUSTERS 128
+#define NUM_EVENT_BLOCKS 128
 
 // Which GPU to use, if more than 1
-#define DEVICE 1
+#define DEVICE 0
 
 // Using only diagonal covariance matrix, thus all dimensions are considered independent
 #define DIAG_ONLY 0
 
 // Maximum number of iterations for the EM convergence loop
-#define MIN_ITERS 0
-#define MAX_ITERS 100
+#define MAX_ITERS 10
+// Minimum number of iterations for the EM convergence loop (normally 0 unless doing performance testing)
+#define MIN_ITERS 10
 
 // Prints verbose output during the algorithm
 // Enables the DEBUG macro
@@ -34,7 +55,7 @@
 
 // Used to enable regular print outs (such as the Rissanen scores, clustering results)
 // This should be enabled for general use and disabled for performance evaluations only
-#define ENABLE_PRINT 1
+#define ENABLE_PRINT 0
 
 // Used to enable cluster result output to .results and .summary files
 #define ENABLE_OUTPUT 1
