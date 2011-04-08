@@ -43,22 +43,23 @@
 // in emulation mode. It is used to print out during cuda kernels
 #define EMU 0
 
+// Lines modified below to make runnable for Visual Studios 2011
 #if ENABLE_DEBUG
-#define DEBUG(fmt,args...) printf(fmt, ##args)
+#define DEBUG(fmt, ...) printf(fmt, __VA_ARGS__)
 #else
-#define DEBUG(fmt,args...)
+#define DEBUG(fmt, ...)
 #endif
 
 #if ENABLE_PRINT
-#define PRINT(fmt,args...) printf(fmt, ##args)
+#define PRINT(fmt, ...) printf(fmt, __VA_ARGS__)
 #else
-#define PRINT(fmt,args...)
+#define PRINT(fmt, ...)
 #endif
 
-#ifdef EMU
-#define EMUPRINT(fmt,args...) printf(fmt, ##args)
+#if EMU
+#define EMUPRINT(fmt, ...) printf(fmt, __VA_ARGS__)
 #else
-#define EMUPRINT(fmt,args...)
+#define EMUPRINT(fmt, ...)
 #endif
 
 typedef struct 

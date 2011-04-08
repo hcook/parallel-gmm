@@ -16,9 +16,16 @@
 #include <time.h> // for clock(), clock_t, CLOCKS_PER_SEC
 
 // includes, project
+
+// loads common factors for gaussian
 #include "gaussian.h"
+// loads headers for inverting matrix
 #include "invert_matrix.h"
+// loads headers for gaussian_kernel
 #include "gaussian_kernel.h"
+
+// includes, Cilk Plus
+#include <cilk\cilk.h>
 
 // Function prototypes
 extern "C" float* readData(char* f, int* ndims, int*nevents);
@@ -87,7 +94,7 @@ main( int argc, char** argv) {
     PRINT("Number of target clusters: %d\n\n",num_clusters);
    
     cpu_timer = clock();
-    
+
     // Setup the cluster data structures on host
     clusters_t clusters;
     clusters.N = (float*) malloc(sizeof(float)*num_clusters);
@@ -123,7 +130,7 @@ main( int argc, char** argv) {
     constants_iterations++;
     seed_end = clock();
     seed_total = seed_end - seed_start;
-    
+
     // Calculate an epsilon value
     //int ndata_points = num_events*num_dimensions;
     float epsilon = (1+num_dimensions+0.5*(num_dimensions+1)*num_dimensions)*log((float)num_events*num_dimensions)*0.01;
@@ -131,6 +138,7 @@ main( int argc, char** argv) {
     int iters;
     
     epsilon = 1e-6;
+
     PRINT("Gaussian.cu: epsilon = %f\n",epsilon);
 
     /*************** EM ALGORITHM *****************************/

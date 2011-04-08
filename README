@@ -1,0 +1,2 @@
+This version of parallel GMM is intended for multicore w/ Cilk Plus.
+It is best compiled under Windows ICC compiler.

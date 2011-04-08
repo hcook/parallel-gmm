@@ -5,7 +5,6 @@
 #include "invert_matrix.h"
 #include "gaussian.h"
 
-
 static float double_abs(float x);
 
 static int 
