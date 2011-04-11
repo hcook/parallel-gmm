@@ -169,8 +169,8 @@ __declspec(noinline) void estep1_events(float* data, clusters_t* clusters, int D
 /* Cilk Plus Status:
  * estep1
  * Two Possible Parallelizations:
- * 1) Parallelize over M (i.e. each cluster) <-- this option was taken
- * 2) Parallelize over N (i.e. each event)
+ * 1) Parallelize over M (i.e. each cluster) 
+ * 2) Parallelize over N (i.e. each event) <-- this option was taken
  */
 void estep1(float* data, clusters_t* clusters, int D, int M, int N, float* likelihood) {
     clock_t start,finish;
@@ -190,6 +190,27 @@ void estep1(float* data, clusters_t* clusters, int D, int M, int N, float* likel
     DEBUG("estep1: %f seconds.\n",(double)(finish-start)/(double)CLOCKS_PER_SEC);
 }
 
+__declspec(noinline) float estep2_events(clusters_t* clusters, int M, int n, int N) {
+	// Finding maximum likelihood for this data point
+	float max_likelihood;
+	max_likelihood = __sec_reduce_max(clusters->memberships[n:M:N]);
+
+	// Computes sum of all likelihoods for this event
+	float denominator_sum;
+	denominator_sum = 0.0f;
+	for(int m=0; m < M; m++) {
+		denominator_sum += exp(clusters->memberships[m*N+n] - max_likelihood);
+	}
+	denominator_sum = max_likelihood + log(denominator_sum);
+
+	// Divide by denominator to get each membership
+	for(int m=0; m < M; m++) {
+		clusters->memberships[m*N+n] = exp(clusters->memberships[m*N+n] - denominator_sum);
+	}
+
+	return denominator_sum;
+}
+
 /* Cilk Plus Status:
  * estep2
  * Two Possible Parallelizations:
@@ -203,27 +224,8 @@ void estep2(float* data, clusters_t* clusters, int D, int M, int N, float* likel
     start = clock();
     float max_likelihood, denominator_sum;
     *likelihood = 0.0f;
-    for(int n=0; n < N; n++) {
-        // initial condition, maximum is the membership in first cluster
-        max_likelihood = clusters->memberships[n];
-        // find maximum likelihood for this data point
-        for(int m=1; m < M; m++) {
-            max_likelihood = max(max_likelihood,clusters->memberships[m*N+n]);
-        }
-
-        // Computes sum of all likelihoods for this event
-        denominator_sum = 0.0f;
-        for(int m=0; m < M; m++) {
-            denominator_sum += exp(clusters->memberships[m*N+n] - max_likelihood);
-        }
-        denominator_sum = max_likelihood + log(denominator_sum);
-        *likelihood = *likelihood + denominator_sum;
-
-        // Divide by denominator to get each membership
-        for(int m=0; m < M; m++) {
-            clusters->memberships[m*N+n] = exp(clusters->memberships[m*N+n] - denominator_sum);
-            //printf("Membership of event %d in cluster %d: %.3f\n",n,m,clusters->memberships[m*N+n]);
-        }
+    cilk_for(int n=0; n < N; n++) {
+		*likelihood += estep2_events(clusters, M, n, N);
     }
     finish = clock();
     DEBUG("estep2: %f seconds.\n",(double)(finish-start)/(double)CLOCKS_PER_SEC);
