@@ -1,8 +1,8 @@
 DEPDIR = .dep
 
-TARGET0 = mixtureModelCPU
-CXX = g++-4.0
-CXXFLAGS = -g -O3 -Wall -Wno-deprecated -fomit-frame-pointer -fexpensive-optimizations -fstrength-reduce -fschedule-insns2 -funroll-loops 
+TARGET0 = mixtureModelMulticore
+CXX = icc
+CXXFLAGS = -O2 -ipo -vec-report2
 LIBS = -lm
 INCLUDES = -I.
 

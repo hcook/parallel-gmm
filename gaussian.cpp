@@ -150,7 +150,7 @@ main( int argc, char** argv) {
     // (and hence different multiprocessors)
     DEBUG("Invoking regroup (E-step) kernel with %d blocks.\n",NUM_BLOCKS);
     regroup_start = clock();
-    estep1(fcs_data_by_dimension,&clusters,num_dimensions,num_clusters,num_events,&likelihood);
+    estep1(fcs_data_by_event,&clusters,num_dimensions,num_clusters,num_events,&likelihood);
     estep2(fcs_data_by_dimension,&clusters,num_dimensions,num_clusters,num_events,&likelihood);
     //estep2b(fcs_data_by_dimension,&clusters,num_dimensions,num_clusters,num_events,&likelihood);
     regroup_end = clock();

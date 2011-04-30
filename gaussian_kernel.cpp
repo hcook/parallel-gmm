@@ -150,20 +150,78 @@ void constants(clusters_t* clusters, int M, int D) {
     free(matrix);
 }
 
-__declspec(noinline) void estep1_events(float* data, clusters_t* clusters, int D, int n, int N, int m, float* means, float* Rinv) {
-	float like = 0.0;
-	#if DIAG_ONLY
-		for(int i=0; i < D; i++) {
-			like += (data[i*N+n]-means[i])*(data[i*N+n]-means[i])*Rinv[i*D+i];
-		}
-	#else
-		for(int i=0; i < D; i++) {
-			for(int j=0; j < D; j++) {
-				like += (data[i*N+n]-means[i])*(data[j*N+n]-means[j])*Rinv[i*D+j];
-			}
-		}
-	#endif  
-	clusters->memberships[m*N+n] = -0.5f * like + clusters->constant[m] + log(clusters->pi[m]); 
+__inline__ void estep1_events_transpose(float* data, clusters_t* clusters, int D, int m, int n, int N, float* means, float* Rinv) {
+       float like = 0.0;
+       #if DIAG_ONLY
+               for(int i=0; i < D; i++) {
+                       like += (data[n*D+i]-means[i])*(data[i*N+n]-means[i])*Rinv[i*D+i];
+               }
+       #else
+               for(int i=0; i < D; i++) {
+                       for(int j=0; j < D; j++) {
+                               like += (data[n*D+i]-means[i])*(data[n*D+j]-means[j])*Rinv[i*D+j];
+                       }
+               }
+       #endif  
+       clusters->memberships[m*N+n] = -0.5f * like + clusters->constant[m] + log(clusters->pi[m]); 
+}
+
+void estep1_events(float* data, clusters_t* clusters, int D, int m, int n, int N, float* means, float* Rinv) {
+       float like = 0.0;
+       #if DIAG_ONLY
+               for(int i=0; i < D; i++) {
+                       like += (data[i*N+n]-means[i])*(data[i*N+n]-means[i])*Rinv[i*D+i];
+               }
+       #else
+               for(int i=0; i < D; i++) {
+                       for(int j=0; j < D; j++) {
+                               like += (data[i*N+n]-means[i])*(data[j*N+n]-means[j])*Rinv[i*D+j];
+                       }
+               }
+       #endif  
+       clusters->memberships[m*N+n] = -0.5f * like + clusters->constant[m] + log(clusters->pi[m]); 
+}
+
+__inline__ void estep1_clusters_transpose(float* data, clusters_t* clusters, int D, int m, int N, float* means, float* Rinv) {
+
+    means = (float*) &(clusters->means[m*D]);
+    Rinv = (float*) &(clusters->Rinv[m*D*D]);
+    cilk(int n=0; n < N; n++) {
+        float like = 0.0;
+        #if DIAG_ONLY
+        for(int i=0; i < D; i++) {
+            like += (data[i+n*D]-means[i])*(data[i+n*D]-means[i])*Rinv[i*D+i];
+        }
+        #else
+        cilk(int i=0; i < D; i++) {
+            for(int j=0; j < D; j++) {
+                like += (data[i+n*D]-means[i])*(data[j+n*D]-means[j])*Rinv[i*D+j];
+	    }
+        }
+        #endif  
+        clusters->memberships[m*N+n] = -0.5f * like + clusters->constant[m] + log(clusters->pi[m]); 
+    }
+}
+
+void estep1_clusters(float* data, clusters_t* clusters, int D, int m, int N, float* means, float* Rinv) {
+
+    means = (float*) &(clusters->means[m*D]);
+    Rinv = (float*) &(clusters->Rinv[m*D*D]);
+    for(int n=0; n < N; n++) {
+        float like = 0.0;
+        #if DIAG_ONLY
+        for(int i=0; i < D; i++) {
+            like += (data[i*N+n]-means[i])*(data[i*N+n]-means[i])*Rinv[i*D+i];
+        }
+        #else
+        for(int i=0; i < D; i++) {
+            for(int j=0; j < D; j++) {
+                like += (data[i*N+n]-means[i])*(data[j*N+n]-means[j])*Rinv[i*D+j];
+	    }
+        }
+        #endif  
+        clusters->memberships[m*N+n] = -0.5f * like + clusters->constant[m] + log(clusters->pi[m]); 
+    }
 }
 
 /* Cilk Plus Status:
@@ -178,14 +236,20 @@ void estep1(float* data, clusters_t* clusters, int D, int M, int N, float* likel
     float* means;
     float* Rinv;
     start = clock();
-    for(int m=0; m < M; m++) {
+/*
+    for(int m=0; m < M; m++){
         means = (float*) &(clusters->means[m*D]);
         Rinv = (float*) &(clusters->Rinv[m*D*D]);
-        
+        #pragma cilk grainsize = 0
         cilk_for(int n=0; n < N; n++) {
-			estep1_events(data, clusters, D, n, N, m, means, Rinv);
+            estep1_events_transpose(data, clusters, D, m, n, N, means, Rinv);
         }
     }
+*/
+    cilk_for(int m=0; m < M; m++) {
+        estep1_clusters_transpose(data, clusters, D, m, N, means, Rinv);
+    }
+    cilk_sync;
     finish = clock();
     DEBUG("estep1: %f seconds.\n",(double)(finish-start)/(double)CLOCKS_PER_SEC);
 }
@@ -224,7 +288,7 @@ void estep2(float* data, clusters_t* clusters, int D, int M, int N, float* likel
     start = clock();
     float max_likelihood, denominator_sum;
     *likelihood = 0.0f;
-    cilk_for(int n=0; n < N; n++) {
+    for(int n=0; n < N; n++) {
 		*likelihood += estep2_events(clusters, M, n, N);
     }
     finish = clock();
