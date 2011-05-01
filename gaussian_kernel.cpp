@@ -186,14 +186,14 @@ __inline__ void estep1_clusters_transpose(float* data, clusters_t* clusters, int
 
     means = (float*) &(clusters->means[m*D]);
     Rinv = (float*) &(clusters->Rinv[m*D*D]);
-    cilk(int n=0; n < N; n++) {
+    for(int n=0; n < N; n++) {
         float like = 0.0;
         #if DIAG_ONLY
         for(int i=0; i < D; i++) {
             like += (data[i+n*D]-means[i])*(data[i+n*D]-means[i])*Rinv[i*D+i];
         }
         #else
-        cilk(int i=0; i < D; i++) {
+        for(int i=0; i < D; i++) {
             for(int j=0; j < D; j++) {
                 like += (data[i+n*D]-means[i])*(data[j+n*D]-means[j])*Rinv[i*D+j];
 	    }
