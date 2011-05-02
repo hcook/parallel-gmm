@@ -13,7 +13,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
-#include <time.h> // for clock(), clock_t, CLOCKS_PER_SEC
 
 // includes, project
 
@@ -33,6 +32,7 @@ int validateArguments(int argc, char** argv, int* num_clusters);
 void writeCluster(FILE* f, clusters_t clusters, int c,  int num_dimensions);
 void printCluster(clusters_t clusters, int c, int num_dimensions);
 
+
 ////////////////////////////////////////////////////////////////////////////////
 // Program main
 ////////////////////////////////////////////////////////////////////////////////
@@ -48,14 +48,14 @@ main( int argc, char** argv) {
     int params_iterations = 0;
     clock_t constants_start, constants_end, constants_total = 0;
     int constants_iterations = 0;
-    clock_t total_timer = clock();
+    clock_t total_timer = cilk_getticks();
     double total_time = 0;
     clock_t io_timer;
     double io_time = 0;
     clock_t cpu_timer;
     double cpu_time = 0;
 
-    io_timer = clock();
+    io_timer = cilk_getticks();
     // Validate the command-line arguments, parse # of clusters, etc 
     if(validateArguments(argc,argv,&num_clusters)) {
         return 1; //Bard args
@@ -87,13 +87,13 @@ main( int argc, char** argv) {
         }
     }    
 
-    io_time += (double)(clock() - io_timer);
+    io_time += (double)(cilk_getticks() - io_timer);
    
     PRINT("Number of events: %d\n",num_events);
     PRINT("Number of dimensions: %d\n",num_dimensions);
     PRINT("Number of target clusters: %d\n\n",num_clusters);
    
-    cpu_timer = clock();
+    cpu_timer = cilk_getticks();
 
     // Setup the cluster data structures on host
     clusters_t clusters;
@@ -120,7 +120,7 @@ main( int argc, char** argv) {
     // seed_clusters sets initial pi values, 
     // finds the means / covariances and copies it to all the clusters
     // TODO: Does it make any sense to use multiple blocks for this?
-    seed_start = clock();
+    seed_start = cilk_getticks();
     seed_clusters(fcs_data_by_event, &clusters, num_dimensions, num_clusters, num_events);
    
     DEBUG("Invoking constants kernel.\n");
@@ -128,7 +128,7 @@ main( int argc, char** argv) {
     //constants_kernel<<<num_clusters, num_threads>>>(d_clusters,num_clusters,num_dimensions);
     constants(&clusters,num_clusters,num_dimensions);
     constants_iterations++;
-    seed_end = clock();
+    seed_end = cilk_getticks();
     seed_total = seed_end - seed_start;
 
     // Calculate an epsilon value
@@ -149,14 +149,14 @@ main( int argc, char** argv) {
     // so the events are distributed to different blocks 
     // (and hence different multiprocessors)
     DEBUG("Invoking regroup (E-step) kernel with %d blocks.\n",NUM_BLOCKS);
-    regroup_start = clock();
+    regroup_start = cilk_getticks();
     estep1(fcs_data_by_event,&clusters,num_dimensions,num_clusters,num_events,&likelihood);
     estep2(fcs_data_by_dimension,&clusters,num_dimensions,num_clusters,num_events,&likelihood);
     //estep2b(fcs_data_by_dimension,&clusters,num_dimensions,num_clusters,num_events,&likelihood);
-    regroup_end = clock();
+    regroup_end = cilk_getticks();
     regroup_total += regroup_end - regroup_start;
     regroup_iterations++;
-    DEBUG("Regroup Kernel Iteration Time: %f\n\n",((double)(regroup_end-regroup_start))/CLOCKS_PER_SEC);
+    DEBUG("Regroup Kernel Iteration Time: %f\n\n",((double)(regroup_end-regroup_start)));
 
     DEBUG("Likelihood: %e\n",likelihood);
 
@@ -171,36 +171,35 @@ main( int argc, char** argv) {
         old_likelihood = likelihood;
         
         DEBUG("Invoking reestimate_parameters (M-step) kernel.\n");
-        params_start = clock();
+        params_start = cilk_getticks();
         // This kernel computes a new N, pi isn't updated until compute_constants though
         mstep_n(fcs_data_by_dimension,&clusters,num_dimensions,num_clusters,num_events);
         mstep_mean(fcs_data_by_dimension,&clusters,num_dimensions,num_clusters,num_events);
         mstep_covar(fcs_data_by_dimension,&clusters,num_dimensions,num_clusters,num_events);
-        params_end = clock();
+        params_end = cilk_getticks();
         params_total += params_end - params_start;
         params_iterations++;
-        DEBUG("Model M-Step Iteration Time: %f\n\n",((double)(params_end-params_start))/CLOCKS_PER_SEC);
+        DEBUG("Model M-Step Iteration Time: %f\n\n",((double)(params_end-params_start)));
         //return 0; // RETURN FOR FASTER PROFILING
         
         DEBUG("Invoking constants kernel.\n");
         // Inverts the R matrices, computes the constant, normalizes cluster probabilities
-        constants_start = clock();
+        constants_start = cilk_getticks();
         constants(&clusters,num_clusters,num_dimensions);
-        constants_end = clock();
+        constants_end = cilk_getticks();
         constants_total += constants_end - constants_start;
         constants_iterations++;
-        DEBUG("Constants Kernel Iteration Time: %f\n\n",((double)(constants_end-constants_start))/CLOCKS_PER_SEC);
+        DEBUG("Constants Kernel Iteration Time: %f\n\n",((double)(constants_end-constants_start)));
 
-        DEBUG("Invoking regroup (E-step) kernel with %d blocks.\n",NUM_BLOCKS);
-        regroup_start = clock();
+        regroup_start = cilk_getticks();
         // Compute new cluster membership probabilities for all the events
-        estep1(fcs_data_by_dimension,&clusters,num_dimensions,num_clusters,num_events,&likelihood);
+        estep1(fcs_data_by_event,&clusters,num_dimensions,num_clusters,num_events,&likelihood);
         estep2(fcs_data_by_dimension,&clusters,num_dimensions,num_clusters,num_events,&likelihood);
         //estep2b(fcs_data_by_dimension,&clusters,num_dimensions,num_clusters,num_events,&likelihood);
-        regroup_end = clock();
+        regroup_end = cilk_getticks();
         regroup_total += regroup_end - regroup_start;
         regroup_iterations++;
-        DEBUG("E-step Iteration Time: %f\n\n",((double)(regroup_end-regroup_start))/CLOCKS_PER_SEC);
+        DEBUG("E-step Iteration Time: %f\n\n",((double)(regroup_end-regroup_start)));
     
         change = likelihood - old_likelihood;
         DEBUG("likelihood = %f\n",likelihood);
@@ -227,9 +226,9 @@ main( int argc, char** argv) {
     
     PRINT("Summary filename: %s\n",summary_filename);
     PRINT("Results filename: %s\n",result_filename);
-    cpu_time += (double)(clock() - cpu_timer);
+    cpu_time += (double)(cilk_getticks() - cpu_timer);
     
-    io_timer = clock();
+    io_timer = cilk_getticks();
     // Open up the output file for cluster summary
     FILE* outf = fopen(summary_filename,"w");
     if(!outf) {
@@ -258,17 +257,17 @@ main( int argc, char** argv) {
     
     // Print profiling information
     printf("Program Component\tTotal\tIters\tTime Per Iteration\n");
-    printf("        Seed Kernel:\t%7.4f\t%d\t%7.4f\n",seed_total/(double)CLOCKS_PER_SEC,1, (double) seed_total / (double) CLOCKS_PER_SEC);
-    printf("      E-step Kernel:\t%7.4f\t%d\t%7.4f\n",regroup_total/(double)CLOCKS_PER_SEC,regroup_iterations, (double) regroup_total / (double) CLOCKS_PER_SEC / (double) regroup_iterations);
-    printf("      M-step Kernel:\t%7.4f\t%d\t%7.4f\n",params_total/(double)CLOCKS_PER_SEC,params_iterations, (double) params_total / (double) CLOCKS_PER_SEC / (double) params_iterations);
-    printf("   Constants Kernel:\t%7.4f\t%d\t%7.4f\n",constants_total/(double)CLOCKS_PER_SEC,constants_iterations, (double) constants_total / (double) CLOCKS_PER_SEC / (double) constants_iterations);    
+    printf("        Seed Kernel:\t%7.4f\t%d\t%7.4f\n",(double)seed_total/1000.0,1, (double) seed_total/1000.0 );
+    printf("      E-step Kernel:\t%7.4f\t%d\t%7.4f\n",(double)regroup_total/1000.0,regroup_iterations, (double) regroup_total/1000.0 / (double) regroup_iterations);
+    printf("      M-step Kernel:\t%7.4f\t%d\t%7.4f\n",(double)params_total/1000.0,params_iterations, (double) params_total/1000.0 / (double) params_iterations);
+    printf("   Constants Kernel:\t%7.4f\t%d\t%7.4f\n",(double)constants_total/1000.0,constants_iterations, (double) constants_total/1000.0 / (double) constants_iterations);    
    
     // Write profiling info to summary file
     fprintf(outf,"Program Component\tTotal\tIters\tTime Per Iteration\n");
-    fprintf(outf,"        Seed Kernel:\t%7.4f\t%d\t%7.4f\n",seed_total/(double)CLOCKS_PER_SEC,1, (double) seed_total / (double) CLOCKS_PER_SEC);
-    fprintf(outf,"      E-step Kernel:\t%7.4f\t%d\t%7.4f\n",regroup_total/(double)CLOCKS_PER_SEC,regroup_iterations, (double) regroup_total / (double) CLOCKS_PER_SEC / (double) regroup_iterations);
-    fprintf(outf,"      M-step Kernel:\t%7.4f\t%d\t%7.4f\n",params_total/(double)CLOCKS_PER_SEC,params_iterations, (double) params_total / (double) CLOCKS_PER_SEC / (double) params_iterations);
-    fprintf(outf,"   Constants Kernel:\t%7.4f\t%d\t%7.4f\n",constants_total/(double)CLOCKS_PER_SEC,constants_iterations, (double) constants_total / (double) CLOCKS_PER_SEC / (double) constants_iterations);    
+    fprintf(outf,"        Seed Kernel:\t%7.4f\t%d\t%7.4f\n",(double)seed_total/1000.0,1, (double) seed_total/1000.0);
+    fprintf(outf,"      E-step Kernel:\t%7.4f\t%d\t%7.4f\n",(double)regroup_total/1000.0,regroup_iterations, (double) regroup_total/1000.0 / (double) regroup_iterations);
+    fprintf(outf,"      M-step Kernel:\t%7.4f\t%d\t%7.4f\n",(double)params_total/1000.0,params_iterations, (double) params_total/1000.0 / (double) params_iterations);
+    fprintf(outf,"   Constants Kernel:\t%7.4f\t%d\t%7.4f\n",(double)constants_total/1000.0,constants_iterations, (double) constants_total/1000.0 / (double) constants_iterations);    
     fclose(outf);
     
     
@@ -290,12 +289,12 @@ main( int argc, char** argv) {
         }
     }
     fclose(fresults); 
-    io_time += (double)(clock() - io_timer);
+    io_time += (double)(cilk_getticks() - io_timer);
     printf("\n");
-    printf( "I/O time: %f (ms)\n", 1000.0*io_time/CLOCKS_PER_SEC);
-    printf( "CPU processing time: %f (ms)\n", 1000.0*cpu_time/CLOCKS_PER_SEC);
-    total_time += (double)(clock() - total_timer);
-    printf( "Total time: %f (ms)\n", 1000.0*total_time/CLOCKS_PER_SEC);
+    printf( "I/O time: %f (ms)\n", io_time/1000.0);
+    printf( "CPU processing time: %f (ms)\n", cpu_time/1000.0);
+    total_time += (double)(cilk_getticks() - total_timer);
+    printf( "Total time: %f (ms)\n", total_time/1000.0);
  
     // cleanup host memory
     free(fcs_data_by_event);

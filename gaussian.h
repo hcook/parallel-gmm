@@ -62,6 +62,20 @@
 #define EMUPRINT(fmt, ...)
 #endif
 
+#include <time.h>
+#include <sys/time.h>
+
+static inline unsigned long long cilk_getticks()
+{
+     struct timeval t;
+     gettimeofday(&t, 0);
+     return t.tv_sec * 1000000ULL + t.tv_usec;
+}
+
+static inline double cilk_ticks_to_seconds(unsigned long long ticks)
+{
+     return ticks * 1.0e-6;
+}
 typedef struct 
 {
     // Key for array lengths
