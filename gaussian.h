@@ -45,15 +45,15 @@
 
 // Lines modified below to make runnable for Visual Studios 2011
 #if ENABLE_DEBUG
-#define DEBUG(fmt, ...) printf(fmt, __VA_ARGS__)
+#define DEBUG(fmt,args...) printf(fmt, ##args)
 #else
-#define DEBUG(fmt, ...)
+#define DEBUG(fmt,args...)
 #endif
 
 #if ENABLE_PRINT
-#define PRINT(fmt, ...) printf(fmt, __VA_ARGS__)
+#define PRINT(fmt,args...) printf(fmt, ##args)
 #else
-#define PRINT(fmt, ...)
+#define PRINT(fmt,args...)
 #endif
 
 #if EMU

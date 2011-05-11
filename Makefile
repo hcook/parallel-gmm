@@ -3,7 +3,7 @@ DEPDIR = .dep
 TARGET0 = mixtureModelMulticore
 CXX = icc
 CXXFLAGS = -O2 -ipo -vec-report2
-LIBS = -lm
+LIBS = 
 INCLUDES = -I.
 
 DIRS0 = .

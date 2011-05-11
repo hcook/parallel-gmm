@@ -24,7 +24,7 @@
 #include "gaussian_kernel.h"
 
 // includes, Cilk Plus
-#include <cilk\cilk.h>
+#include <cilk/cilk.h>
 
 // Function prototypes
 extern "C" float* readData(char* f, int* ndims, int*nevents);

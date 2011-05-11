@@ -12,7 +12,7 @@
 #include <string.h>
 #include <time.h>
 #include <math.h>
-#include <minmax.h>
+//#include <minmax.h>
 
 // Include project files
 #include "gaussian.h"
