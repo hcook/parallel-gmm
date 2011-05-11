@@ -142,12 +142,10 @@ void constants(clusters_t* clusters, int M, int D) {
  */
 void estep1(float* data, clusters_t* clusters, int D, int M, int N, float* likelihood) {
     // Compute likelihood for every data point in each cluster
-    float* means;
-    float* Rinv;
     cilk_for(int m=0; m < M; m++) {
-        means = (float*) &(clusters->means[m*D]);
-        Rinv = (float*) &(clusters->Rinv[m*D*D]);
         cilk_for(int n=0; n < N; n++) {
+            float* means = (float*) &(clusters->means[m*D]);
+            float* Rinv = (float*) &(clusters->Rinv[m*D*D]);
             float like = 0.0;
             #if DIAG_ONLY
             for(int i=0; i < D; i++) {
@@ -245,9 +243,8 @@ void mstep_mean(float* data, clusters_t* clusters, int D, int M, int N) {
  */
 
 void mstep_covar(float* data, clusters_t* clusters, int D, int M, int N) {
-    float* means;
     cilk_for(int m=0; m < M; m++) {
-        means = &(clusters->means[m*D]);
+        float* means = &(clusters->means[m*D]);
         float sum;
         for(int i=0; i < D; i++) {
             for(int j=0; j <= i; j++) {
